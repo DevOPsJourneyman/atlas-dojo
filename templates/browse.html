@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Browse{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Browse All Cards</h1>
+    <p>{{ cards|length }} cards — filter by topic, difficulty, or type</p>
+</div>
+
+<!-- Filters -->
+<div class="filter-row">
+    <a href="/browse" class="filter-chip {% if not topic and not difficulty and not card_type %}active{% endif %}">All</a>
+    {% for t in topics %}
+    <a href="/browse?topic={{ t }}{% if difficulty %}&difficulty={{ difficulty }}{% endif %}{% if card_type %}&card_type={{ card_type }}{% endif %}"
+       class="filter-chip {% if topic == t %}active{% endif %}">{{ t }}</a>
+    {% endfor %}
+</div>
+
+<div class="filter-row">
+    {% for d in difficulties %}
+    <a href="/browse?difficulty={{ d }}{% if topic %}&topic={{ topic }}{% endif %}{% if card_type %}&card_type={{ card_type }}{% endif %}"
+       class="filter-chip {% if difficulty == d %}active{% endif %}">{{ d }}</a>
+    {% endfor %}
+    <span style="color:var(--border); padding:0 0.25rem;">|</span>
+    {% for t in types %}
+    <a href="/browse?card_type={{ t }}{% if topic %}&topic={{ topic }}{% endif %}{% if difficulty %}&difficulty={{ difficulty }}{% endif %}"
+       class="filter-chip {% if card_type == t %}active{% endif %}">{{ t }}</a>
+    {% endfor %}
+</div>
+
+{% if cards %}
+{% for card in cards %}
+{% set prog = progress_map.get(card.id) %}
+<div class="browse-item" onclick="this.classList.toggle('open')">
+    <div class="question">{{ card.front }}</div>
+    <div class="meta">
+        <span class="badge badge-{{ card.topic|lower }}">{{ card.topic }}</span>
+        <span class="badge badge-{{ card.difficulty }}">{{ card.difficulty }}</span>
+        <span class="badge badge-{{ card.card_type }}">{{ card.card_type }}</span>
+        {% if prog and prog.times_seen > 0 %}
+        <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-left:auto;">
+            {% if prog.last_rating %}
+            <span style="color:{% if prog.last_rating == 'easy' %}var(--green){% elif prog.last_rating == 'good' %}var(--blue){% elif prog.last_rating == 'hard' %}var(--amber){% else %}var(--red){% endif %}">
+                {{ prog.last_rating }}
+            </span>
+            · {% endif %}seen {{ prog.times_seen }}×
+            {% if prog.streak >= 3 %} · 🔥{{ prog.streak }}{% endif %}
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="browse-answer" onclick="event.stopPropagation()">
+        <div class="answer-text">{{ card.back }}</div>
+        {% if card.command %}
+        <div class="command-block">
+            <div class="cmd-label">Command</div>
+            <code>{{ card.command }}</code>
+        </div>
+        {% endif %}
+        {% if card.why %}
+        <div class="why-text">
+            <span class="why-label">↳ Why this matters</span>
+            {{ card.why }}
+        </div>
+        {% endif %}
+        <form action="/rate" method="POST" style="margin-top:1rem;" onclick="event.stopPropagation()">
+            <input type="hidden" name="card_id" value="{{ card.id }}">
+            <input type="hidden" name="return_to" value="browse">
+            <div class="rating-grid">
+                <button type="submit" name="rating" value="again" class="rating-btn btn-again">Again</button>
+                <button type="submit" name="rating" value="hard" class="rating-btn btn-hard">Hard</button>
+                <button type="submit" name="rating" value="good" class="rating-btn btn-good">Good</button>
+                <button type="submit" name="rating" value="easy" class="rating-btn btn-easy">Easy</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+{% else %}
+<div class="empty-state">
+    <div class="big">◎</div>
+    <h3>No cards match that filter</h3>
+    <a href="/browse" class="btn btn-ghost" style="margin-top:1rem;">Clear filters</a>
+</div>
+{% endif %}
+
+{% endblock %}

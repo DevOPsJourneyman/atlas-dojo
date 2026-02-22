@@ -1,0 +1,14 @@
+services:
+  atlas-dojo:
+    build: .
+    container_name: atlas-dojo
+    ports:
+      - "5002:5000"
+    volumes:
+      - dojo_data:/data
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+
+volumes:
+  dojo_data:

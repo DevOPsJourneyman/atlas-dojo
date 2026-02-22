@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Atlas Dojo</h1>
+    <p>Every master built their edge in the quiet hours. Commit. Push. Deploy. Repeat.</p>
+</div>
+
+<!-- Stats -->
+<div class="stat-grid">
+    <div class="stat-box">
+        <div class="value" style="color: {% if due_count > 0 %}var(--amber){% else %}var(--green){% endif %}">
+            {{ due_count }}
+        </div>
+        <div class="label">Due Today</div>
+    </div>
+    <div class="stat-box">
+        <div class="value">{{ seen_cards }}</div>
+        <div class="label">Seen</div>
+    </div>
+    <div class="stat-box">
+        <div class="value" style="color:var(--green)">{{ mastered }}</div>
+        <div class="label">Mastered</div>
+    </div>
+    <div class="stat-box">
+        <div class="value" style="color:var(--text-dim)">{{ total_cards }}</div>
+        <div class="label">Total Cards</div>
+    </div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+    <div class="card-label">Train</div>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        {% if due_count > 0 %}
+        <a href="/review" class="btn btn-primary">▶ Start Review — {{ due_count }} cards due</a>
+        {% else %}
+        <a href="/review" class="btn btn-ghost">▶ Review All Cards</a>
+        {% endif %}
+        <a href="/lab" class="btn btn-ghost">⚡ Lab Scenarios</a>
+        <a href="/browse" class="btn btn-ghost">◎ Browse All</a>
+    </div>
+</div>
+
+<!-- Topics -->
+<div class="card">
+    <div class="card-label">Topics</div>
+    <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+        {% for topic, count in topics %}
+        <a href="/review?topic={{ topic }}" style="text-decoration:none;">
+            <div style="background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:0.75rem 1.25rem; text-align:center; min-width:120px; transition: border-color 0.15s;" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+                <span class="badge badge-{{ topic|lower }}">{{ topic }}</span>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:600; color:var(--amber); margin-top:0.4rem;">{{ count }}</div>
+                <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.06em;">cards</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Difficulty breakdown -->
+<div class="card">
+    <div class="card-label">Difficulty Breakdown</div>
+    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+        {% for diff, count in difficulties %}
+        <a href="/review?difficulty={{ diff }}" style="text-decoration:none; display:flex; align-items:center; gap:0.5rem; background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:0.5rem 0.9rem;">
+            <span class="badge badge-{{ diff }}">{{ diff }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:16px; color:var(--text);">{{ count }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    <p style="font-size:12px; color:var(--text-dim); margin-top:0.75rem;">
+        Start with Fundamental. Add Intermediate once you can answer those without hesitation.
+    </p>
+</div>
+
+{% if due_count == 0 and seen_cards > 0 %}
+<div style="text-align:center; padding:1.5rem; color:var(--text-dim); font-size:13px;">
+    ✓ All caught up. Come back tomorrow for your next review session.
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Dojo — {% block title %}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #111009;
+            --bg2: #19170e;
+            --bg3: #221f12;
+            --border: #302c18;
+            --amber: #f59e0b;
+            --amber-dim: #78350f;
+            --amber-soft: #fbbf24;
+            --red: #ef4444;
+            --green: #22c55e;
+            --blue: #60a5fa;
+            --text: #f0ead6;
+            --text-dim: #7a7055;
+            --text-mid: #b5a97a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Syne', sans-serif;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(ellipse at 20% 0%, rgba(245,158,11,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 100%, rgba(245,158,11,0.03) 0%, transparent 60%);
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Nav */
+        nav {
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(17,16,9,0.95);
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-brand {
+            font-size: 15px;
+            font-weight: 800;
+            color: var(--amber);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-right: 2rem;
+            white-space: nowrap;
+        }
+
+        nav a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 0 0.9rem;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid transparent;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+        }
+
+        nav a:hover { color: var(--text); }
+        nav a.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+        /* Layout */
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* Page header */
+        .page-header {
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.25rem;
+        }
+
+        .page-header h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        .page-header p {
+            color: var(--text-dim);
+            font-size: 13px;
+            margin-top: 0.35rem;
+            font-weight: 400;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        /* Stat grid */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-box {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--amber);
+            line-height: 1;
+        }
+
+        .stat-box .label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-top: 0.4rem;
+            font-weight: 600;
+        }
+
+        /* Difficulty badges */
+        .badge {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 2px 7px;
+            border-radius: 3px;
+            vertical-align: middle;
+        }
+
+        .badge-fundamental { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .badge-intermediate { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-advanced { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-theory { background: rgba(96,165,250,0.12); color: #93c5fd; border: 1px solid rgba(96,165,250,0.25); }
+        .badge-practice { background: rgba(167,139,250,0.12); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.25); }
+        .badge-why { background: rgba(251,191,36,0.1); color: #fcd34d; border: 1px solid rgba(251,191,36,0.2); }
+        .badge-scenario { background: rgba(52,211,153,0.12); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.25); }
+        .badge-docker { background: rgba(56,189,248,0.1); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.2); }
+        .badge-github { background: rgba(192,132,252,0.1); color: #d8b4fe; border: 1px solid rgba(192,132,252,0.2); }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            text-decoration: none;
+            transition: all 0.15s;
+            font-family: 'Syne', sans-serif;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: var(--amber);
+            color: #111009;
+        }
+        .btn-primary:hover { background: var(--amber-soft); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+        /* Anki rating buttons */
+        .rating-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .rating-btn {
+            padding: 0.75rem 0.5rem;
+            border-radius: 8px;
+            font-family: 'Syne', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: center;
+        }
+
+        .rating-btn .interval {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 400;
+            opacity: 0.7;
+            margin-top: 2px;
+            text-transform: lowercase;
+        }
+
+        .btn-again { background: rgba(239,68,68,0.15); color: #f87171; border-color: rgba(239,68,68,0.3); }
+        .btn-again:hover { background: rgba(239,68,68,0.3); border-color: #ef4444; }
+        .btn-hard { background: rgba(245,158,11,0.15); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+        .btn-hard:hover { background: rgba(245,158,11,0.3); border-color: #f59e0b; }
+        .btn-good { background: rgba(96,165,250,0.15); color: #93c5fd; border-color: rgba(96,165,250,0.3); }
+        .btn-good:hover { background: rgba(96,165,250,0.3); border-color: #60a5fa; }
+        .btn-easy { background: rgba(34,197,94,0.15); color: #4ade80; border-color: rgba(34,197,94,0.3); }
+        .btn-easy:hover { background: rgba(34,197,94,0.3); border-color: #22c55e; }
+
+        /* Flashcard */
+        .flashcard {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            min-height: 200px;
+            position: relative;
+        }
+
+        .flashcard .front-text {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .flashcard .back-section {
+            display: none;
+        }
+
+        .flashcard.revealed .back-section {
+            display: block;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 1.25rem 0;
+        }
+
+        .answer-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text);
+            white-space: pre-wrap;
+            background: var(--bg3);
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        .why-text {
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-mid);
+            font-style: italic;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-left: 3px solid var(--amber-dim);
+            background: rgba(245,158,11,0.04);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .why-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--amber);
+            font-style: normal;
+            display: block;
+            margin-bottom: 0.35rem;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            background: var(--bg3);
+            border-radius: 4px;
+            height: 4px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--amber);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* Filter row */
+        .filter-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+
+        .filter-chip {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            padding: 0.35rem 0.75rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            text-decoration: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .filter-chip:hover, .filter-chip.active {
+            border-color: var(--amber);
+            color: var(--amber);
+            background: rgba(245,158,11,0.08);
+        }
+
+        /* Browse card item */
+        .browse-item {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+
+        .browse-item:hover { border-color: var(--text-dim); }
+        .browse-item.open { border-color: var(--amber); }
+
+        .browse-item .question {
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .browse-item .meta {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .browse-answer {
+            display: none;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .browse-item.open .browse-answer { display: block; }
+
+        /* Streak indicator */
+        .streak-pip {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--amber);
+            margin-right: 2px;
+        }
+
+        .streak-pip.empty {
+            background: var(--border);
+        }
+
+        /* Scenario card */
+        .scenario-card {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: border-color 0.15s;
+        }
+
+        .scenario-card:hover { border-color: var(--text-dim); }
+
+        .scenario-problem {
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-bottom: 1rem;
+        }
+
+        .scenario-reveal {
+            display: none;
+        }
+
+        .scenario-card.open .scenario-reveal { display: block; }
+
+        select {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-family: 'Syne', sans-serif;
+            font-size: 13px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-dim);
+        }
+
+        .empty-state .big {
+            font-size: 48px;
+            margin-bottom: 0.75rem;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-mid);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Command block */
+        .command-block {
+            background: #0a0900;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.75rem;
+        }
+
+        .command-block .cmd-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 9px;
+            color: var(--amber);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.4rem;
+        }
+
+        .command-block code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #4ade80;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="nav-brand">⬡ Dojo</span>
+        <a href="/" {% if request.endpoint == 'index' %}class="active"{% endif %}>Dashboard</a>
+        <a href="/review" {% if request.endpoint == 'review' %}class="active"{% endif %}>Daily Review</a>
+        <a href="/lab" {% if request.endpoint == 'lab' %}class="active"{% endif %}>Lab</a>
+        <a href="/browse" {% if request.endpoint == 'browse' %}class="active"{% endif %}>Browse</a>
+    </nav>
+
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Generic accordion toggle
+        function toggleItem(el) {
+            el.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>

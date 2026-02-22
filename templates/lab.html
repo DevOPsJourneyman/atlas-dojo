@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Lab{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Lab Scenarios</h1>
+    <p>Real situations. Figure out the approach, then reveal the solution.</p>
+</div>
+
+<!-- Filters -->
+<div class="filter-row">
+    <a href="/lab" class="filter-chip {% if not topic %}active{% endif %}">All Topics</a>
+    {% for t in topics %}
+    <a href="/lab?topic={{ t }}" class="filter-chip {% if topic == t %}active{% endif %}">{{ t }}</a>
+    {% endfor %}
+</div>
+
+{% if scenarios %}
+{% set fundamental_scenarios = scenarios | selectattr('difficulty', 'equalto', 'fundamental') | list %}
+{% set intermediate_scenarios = scenarios | selectattr('difficulty', 'equalto', 'intermediate') | list %}
+{% set advanced_scenarios = scenarios | selectattr('difficulty', 'equalto', 'advanced') | list %}
+
+{% for group_name, group in [('Fundamental', fundamental_scenarios), ('Intermediate', intermediate_scenarios), ('Advanced', advanced_scenarios)] %}
+{% if group %}
+<div style="margin-bottom:2rem;">
+    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+        <span class="badge badge-{{ group_name|lower }}">{{ group_name }}</span>
+        <span style="font-size:12px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;">{{ group|length }} scenario{{ 's' if group|length != 1 }}</span>
+    </div>
+
+    {% for scenario in group %}
+    {% set prog = progress_map.get(scenario.id) %}
+    <div class="scenario-card" id="scenario-{{ scenario.id }}" onclick="toggleScenario({{ scenario.id }})">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+            <div style="flex:1;">
+                <div style="display:flex; gap:0.4rem; margin-bottom:0.6rem; flex-wrap:wrap;">
+                    <span class="badge badge-{{ scenario.topic|lower }}">{{ scenario.topic }}</span>
+                    <span class="badge badge-scenario">scenario</span>
+                </div>
+                <div class="scenario-problem">{{ scenario.front }}</div>
+            </div>
+            {% if prog and prog.times_seen > 0 %}
+            <div style="text-align:right; flex-shrink:0;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+                    seen {{ prog.times_seen }}×
+                </div>
+                {% if prog.streak > 0 %}
+                <div style="margin-top:3px;">
+                    {% for i in range([prog.streak, 5]|min) %}
+                    <span class="streak-pip"></span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="scenario-reveal" id="reveal-{{ scenario.id }}" onclick="event.stopPropagation()">
+            <hr class="divider">
+
+            <div style="font-family:'JetBrains Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-dim); margin-bottom:0.5rem;">Approach</div>
+            <div class="answer-text">{{ scenario.back }}</div>
+
+            {% if scenario.command %}
+            <div class="command-block">
+                <div class="cmd-label">Commands</div>
+                <code>{{ scenario.command }}</code>
+            </div>
+            {% endif %}
+
+            {% if scenario.why %}
+            <div class="why-text">
+                <span class="why-label">↳ Why this matters</span>
+                {{ scenario.why }}
+            </div>
+            {% endif %}
+
+            <!-- Rating -->
+            <form action="/rate" method="POST" style="margin-top:1.25rem;" onclick="event.stopPropagation()">
+                <input type="hidden" name="card_id" value="{{ scenario.id }}">
+                <input type="hidden" name="return_to" value="lab">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;">How did you do?</div>
+                <div class="rating-grid">
+                    <button type="submit" name="rating" value="again" class="rating-btn btn-again">Again</button>
+                    <button type="submit" name="rating" value="hard" class="rating-btn btn-hard">Hard</button>
+                    <button type="submit" name="rating" value="good" class="rating-btn btn-good">Good</button>
+                    <button type="submit" name="rating" value="easy" class="rating-btn btn-easy">Easy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+
+{% else %}
+<div class="empty-state">
+    <div class="big">⚡</div>
+    <h3>No scenarios found</h3>
+    <p>Try a different filter.</p>
+</div>
+{% endif %}
+
+<script>
+function toggleScenario(id) {
+    const card = document.getElementById('scenario-' + id);
+    card.classList.toggle('open');
+}
+</script>
+
+{% endblock %}

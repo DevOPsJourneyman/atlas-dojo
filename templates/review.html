@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Daily Review{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Daily Review</h1>
+    <p>{{ card_count }} cards due — rate each one honestly</p>
+</div>
+
+<!-- Filters -->
+<div class="filter-row">
+    <a href="/review" class="filter-chip {% if not topic and not difficulty %}active{% endif %}">All</a>
+    {% for t in topics %}
+    <a href="/review?topic={{ t }}{% if difficulty %}&difficulty={{ difficulty }}{% endif %}"
+       class="filter-chip {% if topic == t %}active{% endif %}">{{ t }}</a>
+    {% endfor %}
+    <span style="color:var(--border); padding:0 0.25rem;">|</span>
+    {% for d in difficulties %}
+    <a href="/review?difficulty={{ d }}{% if topic %}&topic={{ topic }}{% endif %}"
+       class="filter-chip {% if difficulty == d %}active{% endif %}">{{ d }}</a>
+    {% endfor %}
+</div>
+
+{% if cards %}
+
+<!-- Progress bar -->
+<div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+</div>
+
+<div id="card-counter" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim); margin-bottom:1rem;">
+    Card <span id="current-num">1</span> of {{ cards|length }}
+</div>
+
+<!-- Cards -->
+{% for card in cards %}
+<div class="flashcard-wrapper" id="card-{{ loop.index }}" style="display:{% if loop.first %}block{% else %}none{% endif %}">
+
+    <div class="flashcard" id="fc-{{ loop.index }}">
+        <!-- Badges -->
+        <div style="display:flex; gap:0.4rem; margin-bottom:1rem; flex-wrap:wrap;">
+            <span class="badge badge-{{ card.topic|lower }}">{{ card.topic }}</span>
+            <span class="badge badge-{{ card.difficulty }}">{{ card.difficulty }}</span>
+            <span class="badge badge-{{ card.card_type }}">{{ card.card_type }}</span>
+        </div>
+
+        <!-- Front -->
+        <div class="front-text">{{ card.front }}</div>
+
+        <!-- Reveal button -->
+        <div class="back-section" id="back-{{ loop.index }}" style="display:none;">
+            <hr class="divider">
+            <div class="answer-text">{{ card.back }}</div>
+            {% if card.why %}
+            <div class="why-text">
+                <span class="why-label">↳ Why this matters</span>
+                {{ card.why }}
+            </div>
+            {% endif %}
+
+            <!-- Rating -->
+            <form action="/rate" method="POST">
+                <input type="hidden" name="card_id" value="{{ card.id }}">
+                <input type="hidden" name="return_to" value="review">
+                <div class="rating-grid">
+                    <button type="submit" name="rating" value="again" class="rating-btn btn-again"
+                            onclick="nextCard({{ loop.index }}, {{ cards|length }})">
+                        Again
+                        <span class="interval">tomorrow</span>
+                    </button>
+                    <button type="submit" name="rating" value="hard" class="rating-btn btn-hard"
+                            onclick="nextCard({{ loop.index }}, {{ cards|length }})">
+                        Hard
+                        <span class="interval">1-2 days</span>
+                    </button>
+                    <button type="submit" name="rating" value="good" class="rating-btn btn-good"
+                            onclick="nextCard({{ loop.index }}, {{ cards|length }})">
+                        Good
+                        <span class="interval">3+ days</span>
+                    </button>
+                    <button type="submit" name="rating" value="easy" class="rating-btn btn-easy"
+                            onclick="nextCard({{ loop.index }}, {{ cards|length }})">
+                        Easy
+                        <span class="interval">7+ days</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reveal button (shown before answer) -->
+    <div id="reveal-btn-{{ loop.index }}" style="margin-top:1rem;">
+        <button onclick="revealCard({{ loop.index }})" class="btn btn-primary">Show Answer</button>
+    </div>
+
+</div>
+{% endfor %}
+
+<!-- Done state -->
+<div id="done-state" style="display:none;">
+    <div class="empty-state">
+        <div class="big">⬡</div>
+        <h3>Session Complete</h3>
+        <p style="margin-bottom:1.5rem;">You've reviewed all due cards. The dojo remembers.</p>
+        <a href="/" class="btn btn-primary">Back to Dashboard</a>
+    </div>
+</div>
+
+<script>
+    function revealCard(index) {
+        document.getElementById('back-' + index).style.display = 'block';
+        document.getElementById('reveal-btn-' + index).style.display = 'none';
+    }
+
+    function nextCard(current, total) {
+        // Update progress bar
+        const pct = (current / total) * 100;
+        document.getElementById('progress-fill').style.width = pct + '%';
+    }
+</script>
+
+{% else %}
+<div class="empty-state">
+    <div class="big">✓</div>
+    <h3>Nothing due right now</h3>
+    <p style="margin-bottom:1.5rem;">Your next cards are scheduled based on how you rated them. Check back tomorrow.</p>
+    <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+        <a href="/browse" class="btn btn-ghost">Browse All Cards</a>
+        <a href="/lab" class="btn btn-ghost">Practice Lab</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
