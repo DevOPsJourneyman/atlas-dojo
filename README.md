@@ -1,3 +1,4 @@
+[![CI](https://github.com/DevOPsJourneyman/atlas-dojo/actions/workflows/ci.yml/badge.svg)](https://github.com/DevOPsJourneyman/atlas-dojo/actions/workflows/ci.yml)
 # Atlas Dojo
 
 > *Every master built their edge in the quiet hours. Commit. Push. Deploy. Repeat.*
