@@ -239,11 +239,21 @@ def browse():
 
 # ─── Seed Data ───────────────────────────────────────────────────────────────
 
-def seed_database():
-    if Card.query.count() > 0:
+def seed_topic(topic, cards):
+    """Add cards for a topic only if that topic has no cards yet."""
+    if Card.query.filter_by(topic=topic).count() > 0:
         return
+    for card in cards:
+        db.session.add(card)
+    db.session.flush()
+    for card in Card.query.filter_by(topic=topic).all():
+        if not Progress.query.filter_by(card_id=card.id).first():
+            db.session.add(Progress(card_id=card.id, next_review=date.today()))
+    db.session.commit()
 
-    cards = [
+
+def seed_database():
+    docker_github_cards = [
 
         # ── DOCKER — FUNDAMENTAL ─────────────────────────────────────────────
 
@@ -439,6 +449,10 @@ def seed_database():
             why='This is the same layer caching system working in reverse. On pull, Docker only downloads layers it does not have locally. On push, it only uploads layers the registry does not have.'),
 
 
+    ]
+
+    github_cards = [
+
         # ── GITHUB — FUNDAMENTAL ─────────────────────────────────────────────
 
         Card(topic='GitHub', difficulty='fundamental', card_type='theory',
@@ -522,16 +536,296 @@ def seed_database():
             why='Every modern DevOps role uses some CI/CD platform. GitHub Actions is the most accessible because it is built into GitHub and free for public repos. Understanding the concept now makes Week 6 easier.'),
     ]
 
-    for card in cards:
-        db.session.add(card)
+    seed_topic('Docker', docker_github_cards)
+    seed_topic('GitHub', github_cards)
 
-    # Seed progress for all cards (so they appear in Daily Review immediately)
-    db.session.flush()
-    for card in Card.query.all():
-        p = Progress(card_id=card.id, next_review=date.today())
-        db.session.add(p)
+    # ── KUBERNETES ────────────────────────────────────────────────────────────
 
-    db.session.commit()
+    kubernetes_cards = [
+
+        # FUNDAMENTAL
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is Kubernetes and what problem does it solve?',
+            back='Kubernetes (k8s) is a container orchestration platform. It automates deployment, scaling, and management of containerised applications across a cluster of machines.\n\nProblem it solves: Docker alone runs containers on one host. Kubernetes runs them across many hosts, handles failures, scales up/down, and routes traffic — automatically.',
+            why='This is always question one in a k8s interview. The key word is orchestration — Kubernetes does not replace Docker, it orchestrates containers across a fleet of machines.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is a Pod?',
+            back='A Pod is the smallest deployable unit in Kubernetes. It wraps one or more containers that share:\n- The same network namespace (same IP)\n- The same storage volumes\n- The same lifecycle\n\nMost Pods run a single container. Multi-container Pods are used for sidecars (e.g., a log shipper alongside your app).',
+            why='You never run containers directly in k8s — you run Pods. Understanding this is the foundation of everything else. Pods are ephemeral — when they die, they are replaced with new ones at new IPs.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is a Node?',
+            back='A Node is a machine (VM or physical) in the Kubernetes cluster. There are two types:\n\nControl plane node: runs the Kubernetes API server, scheduler, and controller manager. Manages the cluster.\n\nWorker node: runs your application Pods. Has kubelet (node agent) and a container runtime (containerd).',
+            why='In your home lab: zeus01 is the control plane, zeus02/03 are workers. This maps directly to production architectures — managed k8s (EKS, GKE) hides the control plane from you.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is a Deployment?',
+            back='A Deployment manages a set of identical Pods. It ensures:\n- A specified number of replicas are always running\n- Rolling updates with zero downtime\n- Rollback to a previous version if an update fails\n\nYou rarely create Pods directly — you create Deployments which create and manage Pods for you.',
+            why='The Deployment is the core workload object. It adds the self-healing and update management that raw Pods lack. If a Pod crashes, the Deployment controller replaces it automatically.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is a Service and why do you need it if you already have Pods?',
+            back='A Service provides a stable network endpoint for a set of Pods. Pods are ephemeral — they get new IPs every time they restart. A Service has a fixed IP and DNS name that never changes.\n\nService uses label selectors to find its target Pods. Traffic hits the Service, which load-balances to healthy Pods.',
+            why='Without a Service, you would need to track Pod IPs manually — impossible at scale. Service is the network abstraction that decouples consumers from the Pod lifecycle.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='practice',
+            front='What are the essential kubectl commands for seeing what is running?',
+            back='kubectl get pods                    # all pods in current namespace\nkubectl get pods -A                # all pods in all namespaces\nkubectl get all                    # pods, services, deployments, replicasets\nkubectl get nodes                  # cluster nodes and their status\nkubectl get pods -o wide           # includes node and IP columns',
+            why='These are your first commands when something is wrong. -A (all namespaces) is essential because your app might be in a different namespace from where you are looking.',
+            command='kubectl get pods\nkubectl get all\nkubectl get nodes'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='practice',
+            front='How do you apply a manifest file and check what happened?',
+            back='kubectl apply -f deployment.yaml         # create or update resources\nkubectl apply -f ./manifests/            # apply all files in a directory\nkubectl get pods -w                      # watch pods update in real time\nkubectl rollout status deployment/myapp  # wait for rollout to complete',
+            why='apply is idempotent — safe to run multiple times. It creates the resource if it does not exist, updates it if it does. This is the core of GitOps: your YAML is the source of truth.',
+            command='kubectl apply -f deployment.yaml\nkubectl rollout status deployment/myapp'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='practice',
+            front='How do you debug a Pod that is not starting?',
+            back='kubectl get pods                          # check status (Pending, CrashLoopBackOff, etc.)\nkubectl describe pod <pod-name>          # full event log — shows scheduling errors, image pull failures\nkubectl logs <pod-name>                  # app stdout/stderr\nkubectl logs <pod-name> --previous       # logs from the crashed previous instance',
+            why='describe shows Kubernetes-level events (could not pull image, insufficient resources, failed scheduling). logs shows your application output. You need both.',
+            command='kubectl describe pod <pod-name>\nkubectl logs <pod-name>\nkubectl logs <pod-name> --previous'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='practice',
+            front='How do you get a shell inside a running Pod?',
+            back='kubectl exec -it <pod-name> -- bash\nkubectl exec -it <pod-name> -- sh    # if bash not available (alpine)\n\n# If the pod has multiple containers:\nkubectl exec -it <pod-name> -c <container-name> -- bash',
+            why='Same concept as docker exec but for Pods. Essential for debugging — check env vars, test network connectivity, inspect files. The -- separates kubectl flags from the command.',
+            command='kubectl exec -it <pod-name> -- bash'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='theory',
+            front='What is a Namespace?',
+            back='A Namespace is a virtual cluster within a Kubernetes cluster. It partitions resources into isolated groups.\n\nDefault namespaces:\n- default: where your resources go if you do not specify\n- kube-system: Kubernetes internal components (scheduler, DNS)\n- kube-public: publicly readable cluster info\n\nUse namespaces to separate environments (dev/staging/prod) or teams.',
+            why='In your home lab, everything is in default. In production, teams and environments get separate namespaces for isolation, resource quotas, and RBAC permissions.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='why',
+            front='Why use YAML manifests instead of kubectl run?',
+            back='kubectl run creates a Pod imperatively — the command is not saved anywhere and the config is not reproducible.\n\nYAML manifests are declarative — you describe the desired state. Benefits:\n- Version controlled in git\n- Repeatable across clusters\n- Reviewable via pull requests\n- Foundation of GitOps\n\nkubectl run is fine for quick debugging. Use manifests for everything real.',
+            why='Declarative config is the entire philosophy of Kubernetes. The API server stores your desired state; controllers reconcile actual state to match. YAML files are how you express desired state.'),
+
+        Card(topic='Kubernetes', difficulty='fundamental', card_type='scenario',
+            front='Your Pod is in CrashLoopBackOff. Walk through how you diagnose it.',
+            back='CrashLoopBackOff means the container is crashing repeatedly and k8s is backing off before restarting it.\n\n1. kubectl describe pod <name>  # check Events section for clues\n2. kubectl logs <name>          # read the crash output\n3. kubectl logs <name> --previous  # if current instance cannot start, read last crash\n4. Check: wrong command/args, missing env vars, missing ConfigMap/Secret, OOMKilled (memory limit hit)',
+            why='CrashLoopBackOff is one of the most common Pod states you will see. The backoff is k8s protecting the cluster from a tight restart loop. --previous is the critical flag — the current pod may have no logs yet.',
+            command='kubectl describe pod <name>\nkubectl logs <name> --previous'),
+
+
+        # INTERMEDIATE
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='theory',
+            front='What is a ConfigMap and when do you use it?',
+            back='A ConfigMap stores non-sensitive configuration as key-value pairs. Injected into Pods as:\n- Environment variables\n- Files mounted into the container filesystem\n\nExample: app port, feature flags, database hostname (not password).\n\nConfigMaps are NOT encrypted. Never put passwords or tokens in a ConfigMap.',
+            why='Separating config from the container image means you can change configuration without rebuilding the image. The same image runs in dev and prod with different ConfigMaps.'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='theory',
+            front='What is a Secret and how does it differ from a ConfigMap?',
+            back='A Secret stores sensitive data (passwords, tokens, TLS certificates) encoded in base64.\n\nDifferences from ConfigMap:\n- Stored separately in etcd\n- base64 encoded (NOT encrypted by default — still readable if you have cluster access)\n- Can be encrypted at rest with etcd encryption\n- RBAC can restrict who can read Secrets vs ConfigMaps\n\nbase64 is encoding, not encryption. Treat Secrets as sensitive but know their limits.',
+            why='Kubernetes Secrets are frequently misunderstood. base64 is trivially reversible. Real secret management uses HashiCorp Vault or cloud provider KMS. Know the difference for interviews.'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='theory',
+            front='What are labels and selectors and why do they matter?',
+            back='Labels are key-value metadata attached to any Kubernetes resource (app: myapp, env: prod).\n\nSelectors filter resources by label. Services use selectors to find their target Pods.\n\nExample: A Service with selector app: myapp routes traffic to all Pods with label app: myapp — regardless of how many replicas or what their IPs are.',
+            why='Labels are how Kubernetes resources refer to each other without hardcoding names. A Service does not care about Pod names or IPs — it cares about labels. This is what makes dynamic scaling work.'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='practice',
+            front='How do you scale a Deployment and roll back a bad update?',
+            back='# Scale\nkubectl scale deployment myapp --replicas=5\n\n# Rolling update (apply new image version)\nkubectl set image deployment/myapp myapp=myapp:v2\n\n# Check rollout status\nkubectl rollout status deployment/myapp\n\n# View history\nkubectl rollout history deployment/myapp\n\n# Rollback to previous version\nkubectl rollout undo deployment/myapp',
+            why='Rollback is a one-command operation. This is one of the core selling points of Kubernetes over raw containers. In an interview, being able to describe this workflow shows you understand production operations.',
+            command='kubectl rollout status deployment/myapp\nkubectl rollout undo deployment/myapp'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='theory',
+            front='What is the difference between ClusterIP, NodePort, and LoadBalancer service types?',
+            back='ClusterIP (default): only reachable within the cluster. Use for internal service-to-service communication.\n\nNodePort: exposes the service on a static port on every node (30000-32767). Accessible from outside the cluster via <NodeIP>:<NodePort>. How your home lab apps are reachable.\n\nLoadBalancer: provisions a cloud load balancer (AWS ELB, GCP LB). Only works on cloud providers or with MetalLB on bare metal.',
+            why='NodePort is how you access your k3s apps from your LAN. ClusterIP is how microservices talk to each other inside the cluster. LoadBalancer is cloud production. Know which to use when.'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='theory',
+            front='What are liveness and readiness probes?',
+            back='Liveness probe: "Is this container still alive?" — if it fails, k8s restarts the container.\n\nReadiness probe: "Is this container ready to serve traffic?" — if it fails, k8s removes the Pod from the Service endpoints. Traffic stops going to it, but the container is not restarted.\n\nBoth can use HTTP GET, TCP socket, or exec (run a command).',
+            why='A container can be alive but not ready (still initialising). Without a readiness probe, k8s sends traffic to a Pod that is not ready yet. This causes errors during deployments and restarts.'),
+
+        Card(topic='Kubernetes', difficulty='intermediate', card_type='scenario',
+            front='Your Deployment has 3 replicas but kubectl get pods shows only 2 Running and 1 Pending. What do you check?',
+            back='Pending means the Pod has been accepted by the scheduler but cannot be placed on a node.\n\n1. kubectl describe pod <pending-pod>  # check Events: "Insufficient cpu", "Insufficient memory", "no nodes available"\n2. kubectl describe node <node>        # check Allocatable vs Requests\n3. kubectl get events                  # cluster-wide events\n\nCommon causes: resource limits too high, all nodes are full, node is NotReady (cordoned/tainted).',
+            why='Pending is a scheduling problem, not an application problem. The container has not started yet. describe pod Events is always your first stop.',
+            command='kubectl describe pod <pending-pod>\nkubectl describe node <node-name>'),
+
+
+        # ADVANCED
+
+        Card(topic='Kubernetes', difficulty='advanced', card_type='theory',
+            front='What is Helm and what problem does it solve?',
+            back='Helm is the package manager for Kubernetes. A Helm chart is a collection of YAML templates with configurable values.\n\nProblem solved: deploying a complex app (Postgres + app + ingress + secrets) requires many YAML files. Helm packages them into one chart with a values.yaml for customisation.\n\nhelm install myapp ./chart --set replicas=3',
+            why='Most production software ships as Helm charts. Prometheus, cert-manager, nginx-ingress — all installed via Helm. Understanding charts and values.yaml is essential for Week 4+ work.'),
+
+        Card(topic='Kubernetes', difficulty='advanced', card_type='theory',
+            front='What is a StatefulSet and when do you use it instead of a Deployment?',
+            back='StatefulSet is for stateful applications (databases) that need:\n- Stable, persistent hostnames (pod-0, pod-1, pod-2 — always the same names)\n- Stable, persistent storage (each Pod gets its own PVC)\n- Ordered startup and termination\n\nDeployment Pods are interchangeable. StatefulSet Pods have identity.\n\nUse StatefulSet for: Postgres, MySQL, Redis, Kafka, Elasticsearch.',
+            why='Databases cannot be treated as interchangeable Pods — each node has its own data. StatefulSets ensure each Pod always gets the same storage and hostname, enabling proper cluster formation.'),
+
+        Card(topic='Kubernetes', difficulty='advanced', card_type='theory',
+            front='What is the difference between a DaemonSet and a Deployment?',
+            back='Deployment: runs a specified number of Pod replicas, distributed across nodes.\n\nDaemonSet: runs exactly one Pod on every node (or a subset matching a selector). When new nodes join, DaemonSet automatically schedules a Pod on them.\n\nUse DaemonSet for: log collectors (Fluentd), monitoring agents (Prometheus node-exporter), network plugins.',
+            why='DaemonSets are infrastructure-level workloads, not application workloads. If you are deploying Prometheus node-exporter (Week 7) to monitor all nodes, DaemonSet is the correct object.'),
+    ]
+
+    seed_topic('Kubernetes', kubernetes_cards)
+
+    # ── LINUX ─────────────────────────────────────────────────────────────────
+
+    linux_cards = [
+
+        # FUNDAMENTAL
+
+        Card(topic='Linux', difficulty='fundamental', card_type='practice',
+            front='How do you navigate the filesystem and find what is in a directory?',
+            back='pwd              # print working directory\nls               # list files\nls -la           # list all including hidden, with permissions\ncd /etc          # change to absolute path\ncd ..            # go up one level\ncd ~             # go to home directory\ntree /etc -L 2   # visual tree (2 levels deep)',
+            why='These are muscle memory. ls -la is your default — it shows hidden files (dotfiles), permissions, owner, and size. You will use these hundreds of times per day.',
+            command='ls -la\npwd\ncd /var/log'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='practice',
+            front='How do you read file contents and search inside them?',
+            back='cat file.txt            # print entire file\nless file.txt           # paginated viewer (q to quit)\ntail -f /var/log/syslog # follow a log file live\nhead -n 20 file.txt     # first 20 lines\ngrep "error" file.txt   # search for pattern\ngrep -r "pattern" /etc  # recursive search in directory',
+            why='tail -f is your live log viewer. grep is how you find things fast. In production you spend a lot of time reading logs — these commands are essential.',
+            command='tail -f /var/log/syslog\ngrep -r "error" /var/log/'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='theory',
+            front='How do Linux file permissions work?',
+            back='-rwxr-xr-- 1 rt rt 4096 file.txt\n\nBreakdown:\n- First char: - (file) d (directory) l (symlink)\n- rwx: owner permissions (read/write/execute)\n- r-x: group permissions\n- r--: others permissions\n\nchmod 755 file   # rwxr-xr-x\nchmod +x file    # add execute for all\nchown rt:rt file # change owner:group',
+            why='Permissions cause many production issues. A script that works as root fails as a service account. A web server cannot read its config file. Understanding octal notation (755, 644) is essential.',
+            command='ls -la\nchmod +x script.sh\nchown -R www-data:www-data /var/www'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='practice',
+            front='How do you manage running processes?',
+            back='ps aux                  # all running processes\nps aux | grep nginx     # filter for a specific process\ntop                     # interactive process viewer (q to quit)\nhtop                    # better top (may need installing)\nkill <PID>              # send SIGTERM (graceful)\nkill -9 <PID>           # send SIGKILL (force kill)\npkill nginx             # kill by process name',
+            why='kill sends SIGTERM by default — the process can catch it and clean up. -9 (SIGKILL) cannot be caught — the kernel terminates immediately. Always try SIGTERM first.',
+            command='ps aux | grep python\nkill $(pgrep python)'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='practice',
+            front='How do you manage services with systemctl?',
+            back='systemctl status nginx          # check if running\nsystemctl start nginx           # start\nsystemctl stop nginx            # stop\nsystemctl restart nginx         # stop + start\nsystemctl reload nginx          # reload config without restart\nsystemctl enable nginx          # start on boot\nsystemctl disable nginx         # do not start on boot\njournalctl -u nginx -f          # follow service logs',
+            why='systemd is the init system on all modern Linux distros (Ubuntu, Debian, RHEL). journalctl -u <service> -f is your log viewer for system services — equivalent of docker logs for system processes.',
+            command='systemctl status nginx\njournalctl -u nginx -f'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='practice',
+            front='How do you install packages and keep the system updated?',
+            back='# Ubuntu/Debian (apt)\napt update                      # refresh package index\napt upgrade                     # upgrade all installed packages\napt install nginx               # install a package\napt remove nginx                # remove a package\napt search nginx                # search available packages\nwhich nginx                     # find where a binary is installed',
+            why='apt update does NOT install anything — it just refreshes the list of available versions. You must run it before apt install to get the latest packages. Forgetting this is a common mistake.',
+            command='apt update && apt install -y nginx'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='theory',
+            front='What is sudo and when do you need it?',
+            back='sudo (superuser do) runs a command as root. Required for:\n- Installing packages\n- Modifying system files (/etc, /var)\n- Managing services\n- Changing network configuration\n\nsudo command         # run once as root\nsudo -i              # open a root shell (use carefully)\nwhoami               # check current user\nid                   # see user ID and group memberships',
+            why='Running everything as root is dangerous — a mistake affects the entire system. sudo provides a controlled escalation with logging. In containers you often run as root; on host systems you should not.'),
+
+        Card(topic='Linux', difficulty='fundamental', card_type='scenario',
+            front='A service is not starting. Walk through your Linux diagnostic approach.',
+            back='1. systemctl status <service>       # is it running? what is the error?\n2. journalctl -u <service> -n 50    # last 50 log lines\n3. journalctl -u <service> --since "5 minutes ago"  # recent logs\n4. ls -la /etc/<service>/           # check config file permissions\n5. <service> -t                     # test config syntax (nginx -t, apache2 -t)\n6. netstat -tlnp | grep <port>      # is something else using the port?',
+            why='Systematic approach: status → logs → config → conflicts. Jumping to random fixes wastes time. The logs almost always tell you exactly what is wrong.',
+            command='systemctl status nginx\njournalctl -u nginx -n 50\nnginx -t'),
+
+
+        # INTERMEDIATE
+
+        Card(topic='Linux', difficulty='intermediate', card_type='practice',
+            front='How do you check disk, memory, and CPU usage?',
+            back='df -h                   # disk free (human readable)\ndu -sh /var/log/*       # disk usage per directory\nfree -h                 # memory usage\nuptime                  # load averages (1m, 5m, 15m)\nnproc                   # number of CPU cores\ncat /proc/cpuinfo       # detailed CPU info\nvmstat 1 5              # system stats every 1s, 5 times',
+            why='Load average > number of CPUs means the system is overloaded. free -h shows used vs available memory. These are the first commands when a server is slow.',
+            command='df -h\nfree -h\nuptime'),
+
+        Card(topic='Linux', difficulty='intermediate', card_type='practice',
+            front='How do you use pipes and redirects to combine commands?',
+            back='|   pipe: send output of one command to another\n>   redirect stdout to file (overwrites)\n>>  append stdout to file\n2>  redirect stderr to file\n2>&1 redirect stderr to same place as stdout\n\nExamples:\nps aux | grep nginx | wc -l    # count nginx processes\ncat /var/log/syslog | grep error > errors.txt\ndocker logs myapp > app.log 2>&1',
+            why='Pipes are the Unix philosophy: small tools that do one thing, combined to solve complex problems. grep, awk, sort, wc, cut — mastering pipes lets you process any text output without writing scripts.',
+            command='ps aux | grep -v grep | grep nginx\njournalctl -u nginx | grep -i error | tail -20'),
+
+        Card(topic='Linux', difficulty='intermediate', card_type='practice',
+            front='How do you use SSH to connect to and manage remote servers?',
+            back='ssh user@192.168.0.21               # connect with password\nssh -i ~/.ssh/id_rsa user@host      # connect with key\nssh-keygen -t ed25519               # generate a key pair\nssh-copy-id user@192.168.0.21       # copy public key to server\n\n# Copy files remotely\nscp file.txt user@host:/tmp/\nrsync -av ./dir/ user@host:/remote/dir/',
+            why='SSH keys are the standard for server access — never use passwords in production. ssh-copy-id sets up key auth in one command. rsync is smarter than scp — it only transfers changed files.',
+            command='ssh-keygen -t ed25519 -C "home-lab"\nssh-copy-id rt@192.168.0.21'),
+
+        Card(topic='Linux', difficulty='intermediate', card_type='practice',
+            front='How do you find files on the filesystem?',
+            back='find / -name "nginx.conf"              # find by name\nfind /etc -name "*.conf" -type f       # conf files only\nfind /var/log -mtime -1                # modified in last 24h\nfind / -size +100M                     # files larger than 100MB\nlocate nginx.conf                      # faster (uses index, may be stale)\nwhich python3                          # find binary in PATH',
+            why='find is powerful but slow on large filesystems (scans in real time). locate is fast but requires updatedb to have run recently. which is instant for finding executables.',
+            command='find /etc -name "*.conf" -type f\nfind /var/log -mtime -1 -name "*.log"'),
+    ]
+
+    seed_topic('Linux', linux_cards)
+
+    # ── NETWORKING ────────────────────────────────────────────────────────────
+
+    networking_cards = [
+
+        # FUNDAMENTAL
+
+        Card(topic='Networking', difficulty='fundamental', card_type='theory',
+            front='What is an IP address and what is the difference between IPv4 and IPv6?',
+            back='An IP address is a unique identifier for a device on a network.\n\nIPv4: 32-bit, written as 4 octets — 192.168.0.1. ~4.3 billion addresses (exhausted).\nIPv6: 128-bit, written in hex — 2001:db8::1. Effectively unlimited.\n\nPrivate IPv4 ranges (not routable on internet):\n10.0.0.0/8\n172.16.0.0/12\n192.168.0.0/16  ← your home lab',
+            why='Your home lab uses 192.168.0.x — a private range. These IPs never appear on the internet. NAT at your router translates them to your public IP when reaching external services.'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='theory',
+            front='What is CIDR notation and how do you read a subnet mask?',
+            back='CIDR (Classless Inter-Domain Routing) notation: IP/prefix-length\n\n192.168.0.0/24 means:\n- Network: 192.168.0.0\n- /24 = 24 bits for network, 8 bits for hosts\n- 256 addresses, 254 usable (0 = network, 255 = broadcast)\n\n/16 = 65,536 addresses\n/24 = 256 addresses\n/32 = single host',
+            why='You need to read CIDR notation to understand Docker networks, Kubernetes pod CIDRs, VPC subnets, and firewall rules. /24 is the most common home/office subnet.'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='theory',
+            front='What is DNS and how does it work?',
+            back='DNS (Domain Name System) translates human-readable names to IP addresses.\n\nFlow: your browser asks "what is the IP of google.com?"\n1. Check local cache\n2. Ask your configured DNS resolver (e.g. 8.8.8.8)\n3. Resolver queries root → TLD (.com) → authoritative nameserver\n4. Returns IP address\n5. Browser connects to that IP\n\nnslookup google.com\ndig google.com',
+            why='DNS problems look like connectivity problems. "Cannot reach service" is often "cannot resolve hostname." Always check DNS resolution before assuming network failure.',
+            command='nslookup google.com\ndig google.com\ndig @8.8.8.8 google.com'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='theory',
+            front='What is a port and why do applications use specific ones?',
+            back='A port is a number (0-65535) that identifies a specific process on a machine. IP routes to the machine, port routes to the application.\n\nWell-known ports:\n22  SSH\n80  HTTP\n443 HTTPS\n5432 PostgreSQL\n6443 Kubernetes API server\n\nYour apps: 5001, 5002, 5003 (custom, avoids conflicts with system services)',
+            why='When you docker run -p 8080:80, you are mapping host port 8080 to container port 80. Port conflicts (EADDRINUSE) happen when two processes try to bind the same port.'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='practice',
+            front='How do you test network connectivity from the command line?',
+            back='ping 8.8.8.8                    # ICMP reachability test\nping google.com                 # also tests DNS resolution\ncurl http://192.168.0.24:5001  # test HTTP endpoint\ncurl -I https://google.com      # headers only (fast check)\nwget http://url -O /dev/null    # download to /dev/null (test speed)\ntelnet 192.168.0.21 22          # test if TCP port is open',
+            why='ping tests reachability. curl tests the actual application endpoint. If ping works but curl fails, the app is the problem. If ping fails, the network is the problem. Isolate layers.',
+            command='ping -c 3 8.8.8.8\ncurl -I http://192.168.0.24:5001\n'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='practice',
+            front='How do you see what ports are open and what is listening on them?',
+            back='ss -tlnp                        # TCP listening ports + process\nss -ulnp                        # UDP listening ports\nnetstat -tlnp                   # older equivalent (may not be installed)\nlsof -i :5001                   # what is using port 5001\nkubectl get svc                 # services exposed in Kubernetes',
+            why='ss is the modern replacement for netstat. -t=TCP -l=listening -n=numeric ports -p=show process. Essential for debugging "address already in use" errors.',
+            command='ss -tlnp\nlsof -i :5001'),
+
+        Card(topic='Networking', difficulty='fundamental', card_type='theory',
+            front='What is the difference between TCP and UDP?',
+            back='TCP (Transmission Control Protocol):\n- Connection-oriented (3-way handshake)\n- Guaranteed delivery, ordered packets\n- Error checking and retransmission\n- Use for: HTTP, SSH, databases, file transfer\n\nUDP (User Datagram Protocol):\n- Connectionless, fire-and-forget\n- No guarantee of delivery or order\n- Lower latency\n- Use for: DNS, video streaming, gaming, metrics (StatsD)',
+            why='Most DevOps services use TCP. DNS uses UDP (fast queries). Understanding this helps debug firewall rules — you may need to open both TCP and UDP ports for some services.'),
+
+
+        # INTERMEDIATE
+
+        Card(topic='Networking', difficulty='intermediate', card_type='theory',
+            front='What is NAT and how does it relate to your home lab?',
+            back='NAT (Network Address Translation) allows multiple devices with private IPs to share one public IP.\n\nYour home lab flow:\n- Devices have private IPs: 192.168.0.x\n- Your router has one public IP from your ISP\n- Outbound: router rewrites source IP to public IP\n- Inbound: port forwarding rules direct traffic to internal hosts\n\nYour apps are accessible on your LAN but not from the internet (unless you set up port forwarding).',
+            why='Understanding NAT explains why your home lab apps are only accessible on 192.168.0.x. Port forwarding on your router would expose them externally — but also exposes them to the internet.'),
+
+        Card(topic='Networking', difficulty='intermediate', card_type='theory',
+            front='What is a firewall and how does UFW work on Ubuntu?',
+            back='A firewall controls which network traffic is allowed in/out based on rules (IP, port, protocol).\n\nUFW (Uncomplicated Firewall) on Ubuntu:\nufw status                      # is it active?\nufw allow 22/tcp                # allow SSH\nufw allow 5001/tcp              # allow your app\nufw deny 5432/tcp               # block postgres from outside\nufw enable\nufw delete allow 5001/tcp       # remove a rule',
+            why='If you can ping a server but cannot connect to your app, the firewall is blocking the port. UFW is the friendly frontend to iptables. Always allow SSH (22) before enabling the firewall or you will lock yourself out.',
+            command='ufw status verbose\nufw allow 22/tcp\nufw allow 5001/tcp'),
+
+        Card(topic='Networking', difficulty='intermediate', card_type='practice',
+            front='How do you trace the network path to a destination?',
+            back='traceroute 8.8.8.8              # show each hop to destination\nmtr 8.8.8.8                    # real-time traceroute (better tool)\ncurl -v http://192.168.0.24:5001  # verbose curl shows DNS + TCP handshake\ndig +trace google.com           # trace DNS resolution step by step\nkubectl exec pod -- curl http://service-name  # test internal k8s DNS',
+            why='When a connection fails, traceroute shows where it breaks. In Kubernetes, testing connectivity from inside a Pod (kubectl exec + curl) isolates whether it is a network policy, DNS, or application issue.',
+            command='traceroute 8.8.8.8\nkubectl exec -it <pod> -- curl http://my-service:5000'),
+
+        Card(topic='Networking', difficulty='intermediate', card_type='scenario',
+            front='Your app is running in Kubernetes but you cannot reach it from your laptop. Walk through diagnosing it.',
+            back='Layer by layer:\n1. kubectl get pods             # is the pod running?\n2. kubectl get svc              # is the Service created? correct type (NodePort)?\n3. kubectl describe svc myapp  # what port is it on?\n4. curl http://<node-ip>:<nodeport>  # test from laptop\n5. kubectl exec pod -- curl localhost:5000  # test inside pod\n6. kubectl logs pod            # any app errors?\n7. Check firewall on the node: ufw status',
+            why='Work from the inside out: app → Pod → Service → Node → network. If it works inside the Pod but not from outside, the issue is Service/NodePort config or firewall. This systematic approach finds the layer where it breaks.',
+            command='kubectl get svc\nkubectl describe svc myapp\ncurl http://192.168.0.21:30080'),
+    ]
+
+    seed_topic('Networking', networking_cards)
 
 
 # ─── Init ────────────────────────────────────────────────────────────────────
