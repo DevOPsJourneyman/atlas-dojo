@@ -21,7 +21,7 @@ A spaced repetition training tool for DevOps engineers. Built with Flask + SQLit
 | GitHub | Fundamental | Theory, Practice, Why, Scenario |
 | GitHub | Intermediate | Theory, Practice, Why, Scenario |
 
-New topics added weekly as the roadmap progresses (Kubernetes → Ansible → Terraform → CI/CD → Monitoring).
+New topics added weekly as the roadmap progresses (Ansible → Terraform → Monitoring).
 
 ## Spaced Repetition Algorithm
 
@@ -44,14 +44,11 @@ docker run -d -p 5002:5000 -v dojo_data:/data devopsjourneyman/atlas-dojo:latest
 Open `http://localhost:5002`
 
 ## Running on Home Lab
-
 ```bash
-git clone https://github.com/DevOpsJourneyman/atlas-dojo
-cd atlas-dojo
-docker compose up -d --build
+kubectl apply -f kubernetes/
 ```
 
-App runs at `http://192.168.0.24:5002`
+See [atlas-lab](https://github.com/DevOpsJourneyman/atlas-lab) for infrastructure details.
 
 ## Tech Stack
 
@@ -59,9 +56,21 @@ App runs at `http://192.168.0.24:5002`
 - SQLite via SQLAlchemy
 - SM-2 spaced repetition algorithm
 - Docker + Docker Compose
-- Ubuntu Server VM on Proxmox (Atlas Lab)
+- Kubernetes (k3s) — Deployment, Service, PersistentVolumeClaim
+- GitHub Actions — CI/CD pipeline (lint → build → smoke test → push)
+- Ubuntu Server VMs on Proxmox (Atlas Lab)
+
+## CI/CD Pipeline
+
+Automated via GitHub Actions on every push:
+
+1. **Lint** — Dockerfile analysed with hadolint
+2. **Build & Test** — image built, container started, smoke tested with curl
+3. **Push** — verified image pushed to Docker Hub
+
+Each job only runs if the previous one passes.
 
 ## Part of the DevOps Roadmap
 
-**Week:** 2 — Docker Fundamentals  
-This project reinforces the same Docker patterns as the nutrition tracker (Week 2 deliverable #1) through deliberate repetition with a different data model.
+**Weeks:** 2 (Docker) · 3–4 (Kubernetes) · 5–6 (CI/CD)  
+Portfolio goal: Demonstrate containerisation, Kubernetes deployment, and automated CI/CD pipeline on a real self-hosted application.
